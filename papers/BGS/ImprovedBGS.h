@@ -284,13 +284,13 @@ template <class state, class action>
 void ImprovedBGS<state, action>::ExtractPathToStartFromID(uint64_t node, std::vector<state> &thePath)
 {
 	/* TODO */
+	printf("%lld---\n",GetNodesExpanded());
 	thePath.clear();
-	/*do {
-		thePath.push_back(q.Lookup(node).data);
-		node = q.Lookup(node).parentID;
-	} while (q.Lookup(node).parentID != node);
-	thePath.push_back(q.Lookup(node).data);
-	*/
+	do {
+		thePath.push_back(q_f.Lookup(node).data);
+		node = q_f.Lookup(node).parentID;
+	} while (q_f.Lookup(node).parentID != node);
+	thePath.push_back(q_f.Lookup(node).data);
 	
 }
 template <class state, class action>
@@ -325,8 +325,8 @@ void ImprovedBGS<state, action>::GetNodesFromFq()
 						env->GetStateHash(s),
 						g_value,
 						h_value,
-						parentId,
-						parentList);
+						parentList,
+						parentId);
 				q_f.Remove(env->GetStateHash(s));
 			}
 			
@@ -352,8 +352,8 @@ void ImprovedBGS<state, action>::GetNodesFromGq()
 						env->GetStateHash(s),
 						g_value,
 						h_value,
-						parentId,
-						parentList);
+						parentList,
+						parentId);
 				q_g.Remove(env->GetStateHash(s));
 			}
 			
@@ -381,8 +381,8 @@ void ImprovedBGS<state, action>::GetNodeswithBoundinFAboveBoundinG()
 						env->GetStateHash(s),
 						g_value,
 						h_value,
-						parentId,
-						parentList);
+						parentList,
+						parentId);
 			q_g.Remove(env->GetStateHash(s));
 			}
 		}
@@ -408,8 +408,8 @@ void ImprovedBGS<state, action>::GetNodeswithBoundinGAboveBoundinF(double costLi
 						env->GetStateHash(s),
 						g_value,
 						h_value,
-						parentId,
-						parentList);
+						parentList,
+						parentId);
 				q_f.Remove(env->GetStateHash(s));
 			}
 			
@@ -545,6 +545,7 @@ bool ImprovedBGS<state, action>::StepIterationUsingF()
 		ExtractPathToStartFromID(nodeid, solutionPath);
 		std::reverse(solutionPath.begin(), solutionPath.end());
 		solutionCost = env->GetPathLength(solutionPath);
+		data.solutionInterval.lowerBound = solutionCost;
 		printf("the solution cost is %1.5f\n",solutionCost);
 		return false;
 	}
@@ -638,16 +639,16 @@ bool ImprovedBGS<state, action>::StepIterationUsingF()
 							  env->GetStateHash(neighbors[x]),
 							  childGCost,
 							  std::max(h->HCost(neighbors[x], goal), q_f.Lookup(nodeid).h-edgeCosts[x]),
-							  nodeid,
-							  0);
+							  uint64_t(1),
+							  nodeid);
 				}
 				else{
 					q_f.AddOpenNode(neighbors[x],
 							  env->GetStateHash(neighbors[x]),
 							  childGCost,
 							  h->HCost(neighbors[x], goal),
-							  nodeid,
-							  0);
+							  uint64_t(1),
+							  nodeid);
 				}
 				
 			}
@@ -678,6 +679,7 @@ bool ImprovedBGS<state, action>::StepIterationUsingG()
 		ExtractPathToStartFromID(nodeid, solutionPath);
 		std::reverse(solutionPath.begin(), solutionPath.end());
 		solutionCost = env->GetPathLength(solutionPath);
+		data.solutionInterval.lowerBound = solutionCost;
 		printf("the solution cost is %1.5f\n",solutionCost);
 		return false;
 	}
@@ -725,8 +727,8 @@ bool ImprovedBGS<state, action>::StepIterationUsingG()
 							  env->GetStateHash(neighbors[x]),
 							  childGCost,
 							  h->HCost(neighbors[x], goal),
-							  nodeid,
-							  1);
+							  uint64_t(2),
+							  nodeid);
 				}
 		}
 	}
@@ -749,11 +751,10 @@ bool ImprovedBGS<state, action>::DoSingleSearchStep(std::vector<state> &thePath)
 //	b = 10000; //5not found lis
 	cnt+=1;
 	if(!MainIterationComplete()){
-		
 		if (flesseq(solutionCost, data.solutionInterval.lowerBound))
 				{
 					thePath = solutionPath;
-					//printf("Found solution cost %1.5f\n", solutionCost);
+					printf("Found solution cost %1.5f\n", solutionCost);
 					return true;
 				}
 		if(!MODE){
