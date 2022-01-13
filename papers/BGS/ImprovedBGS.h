@@ -14,7 +14,7 @@
 #define ImprovedBGS_h
 
 #include "Heuristic.h"
-#include "AStarOpenClosed.h"
+#include "BGSList.h"
 
 template <class state, class action>
 class ImprovedBGS {
@@ -150,13 +150,13 @@ private:
 	int cnt = 0;
 	bool iterationComplete = false;
 	struct BFHSCompare {
-		bool operator()(const AStarOpenClosedData<state> &i1, const AStarOpenClosedData<state> &i2) const
+		bool operator()(const BGSListData<state> &i1, const BGSListData<state> &i2) const
 		{
 			return (fgreater(i1.g, i2.g));
 		}
 	};
     struct BFHSCompare_f {
-		bool operator()(const AStarOpenClosedData<state> &i1, const AStarOpenClosedData<state> &i2) const
+		bool operator()(const BGSListData<state> &i1, const BGSListData<state> &i2) const
 		{
 			if (fequal(i1.g+i1.h, i2.g+i2.h))
 			{
@@ -166,8 +166,8 @@ private:
 		}
 	};
 	// Data for BFHS
-	AStarOpenClosed<state, BFHSCompare> q_g;
-	AStarOpenClosed<state, BFHSCompare_f> q_f;
+	BGSList<state, BFHSCompare> q_g;
+	BGSList<state, BFHSCompare_f> q_f;
 	std::vector<state> neighbors;
 	std::vector<uint64_t> neighborID;
 	std::vector<double> edgeCosts;
@@ -268,7 +268,7 @@ void ImprovedBGS<state, action>::SetupIterationF(double cost)
 	/* if the g list is empty, get the start node, otherwise use the cost value to put all the nodes from g to f */
     if(q_g.empty()){
 		q_f.Reset(env->GetMaxHash());
-		q_f.AddOpenNode(start, env->GetStateHash(start), 0.0, 0.0);
+		q_f.AddOpenNode(start, env->GetStateHash(start), 0.0, 0.0,0);
 	}
 	else{
 		GetNodeswithBoundinFAboveBoundinG();
@@ -298,6 +298,7 @@ void ImprovedBGS<state, action>::ExtractPathToStartFromIDF(uint64_t node, std::v
 {
 	
 	
+	
 }
 template <class state, class action>
 void ImprovedBGS<state, action>::ExtractPathToStartFromIDG(uint64_t node, std::vector<state> &thePath)
@@ -317,13 +318,15 @@ void ImprovedBGS<state, action>::GetNodesFromFq()
 		uint64_t hk = env->GetStateHash(s);
 		uint64_t ok;
 		uint64_t parentId = q_f.Lookup(i).parentID;
+		uint64_t parentList = q_f.Lookup(i).parentList;
 		if(q_f.Lookup(hk,ok) == kOpenList){
 			if(q_g.Lookup(hk,ok) == kNotFound){
 				q_g.AddOpenNode(s,
 						env->GetStateHash(s),
 						g_value,
 						h_value,
-						parentId);
+						parentId,
+						parentList);
 				q_f.Remove(env->GetStateHash(s));
 			}
 			
@@ -342,13 +345,15 @@ void ImprovedBGS<state, action>::GetNodesFromGq()
 		uint64_t hk = env->GetStateHash(s);
 		uint64_t ok;
 		uint64_t parentId = q_g.Lookup(i).parentID;
+		uint64_t parentList = q_g.Lookup(i).parentList;
 		if(q_g.Lookup(hk,ok) == kOpenList){
 			if(q_f.Lookup(hk,ok) == kNotFound){
 				q_f.AddOpenNode(s,
 						env->GetStateHash(s),
 						g_value,
 						h_value,
-						parentId);
+						parentId,
+						parentList);
 				q_g.Remove(env->GetStateHash(s));
 			}
 			
@@ -369,13 +374,15 @@ void ImprovedBGS<state, action>::GetNodeswithBoundinFAboveBoundinG()
 		uint64_t hk = env->GetStateHash(s);
 		uint64_t ok;
 		uint64_t parentId = q_g.Lookup(i).parentID;
+		uint64_t parentList = q_g.Lookup(i).parentList;
 		if(q_g.Lookup(hk,ok) == kOpenList){
 			if(q_f.Lookup(hk,ok) == kNotFound){
 				q_f.AddOpenNode(s,
 						env->GetStateHash(s),
 						g_value,
 						h_value,
-						parentId);
+						parentId,
+						parentList);
 			q_g.Remove(env->GetStateHash(s));
 			}
 		}
@@ -394,13 +401,15 @@ void ImprovedBGS<state, action>::GetNodeswithBoundinGAboveBoundinF(double costLi
 		uint64_t hk = env->GetStateHash(s);
 		uint64_t ok;
 		uint64_t parentId = q_f.Lookup(i).parentID;
+		uint64_t parentList = q_f.Lookup(i).parentList;
 		if(q_f.Lookup(hk,ok) == kOpenList  && flesseq(f_value,costLimit)){
 			if(q_g.Lookup(hk,ok) == kNotFound){
 				q_g.AddOpenNode(s,
 						env->GetStateHash(s),
 						g_value,
 						h_value,
-						parentId);
+						parentId,
+						parentList);
 				q_f.Remove(env->GetStateHash(s));
 			}
 			
@@ -629,14 +638,16 @@ bool ImprovedBGS<state, action>::StepIterationUsingF()
 							  env->GetStateHash(neighbors[x]),
 							  childGCost,
 							  std::max(h->HCost(neighbors[x], goal), q_f.Lookup(nodeid).h-edgeCosts[x]),
-							  nodeid);
+							  nodeid,
+							  0);
 				}
 				else{
 					q_f.AddOpenNode(neighbors[x],
 							  env->GetStateHash(neighbors[x]),
 							  childGCost,
 							  h->HCost(neighbors[x], goal),
-							  nodeid);
+							  nodeid,
+							  0);
 				}
 				
 			}
@@ -714,7 +725,8 @@ bool ImprovedBGS<state, action>::StepIterationUsingG()
 							  env->GetStateHash(neighbors[x]),
 							  childGCost,
 							  h->HCost(neighbors[x], goal),
-							  nodeid);
+							  nodeid,
+							  1);
 				}
 		}
 	}
@@ -737,6 +749,7 @@ bool ImprovedBGS<state, action>::DoSingleSearchStep(std::vector<state> &thePath)
 //	b = 10000; //5not found lis
 	cnt+=1;
 	if(!MainIterationComplete()){
+		
 		if (flesseq(solutionCost, data.solutionInterval.lowerBound))
 				{
 					thePath = solutionPath;
