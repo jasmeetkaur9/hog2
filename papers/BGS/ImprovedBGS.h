@@ -273,7 +273,7 @@ void ImprovedBGS<state, action>::SetupIterationF(double cost)
 	/* if the g list is empty, get the start node, otherwise use the cost value to put all the nodes from g to f */
     if(q_g.empty()){
 		q_f.Reset(env->GetMaxHash());
-		q_f.AddOpenNode(start, env->GetStateHash(start), 0.0, 0.0);
+		q_f.AddOpenNode(start, env->GetStateHash(start), 0.0, h->HCost(start, goal));
 	}
 	else{
 		GetAllNodesinG();
@@ -690,7 +690,7 @@ bool ImprovedBGS<state, action>::StepIterationUsingF()
 		std::reverse(solutionPath.begin(), solutionPath.end());
 		solutionCost = q_f.Lookup(nodeid).g;
 		data.solutionInterval.lowerBound = solutionCost;
-		printf("the solution cost is %1.5f has value is %lld\n",solutionCost, env->GetStateHash(q_f.Lookup(nodeid).data));
+		//printf("the solution cost is %1.5f has value is %lld\n",solutionCost, env->GetStateHash(q_f.Lookup(nodeid).data));
 		return false;
 	}
 	
@@ -736,7 +736,8 @@ bool ImprovedBGS<state, action>::StepIterationUsingF()
 		double childFCost = childGCost+h->HCost(neighbors[x], goal);
 		uint64_t hk = env->GetStateHash(neighbors[x]);
 		uint64_t ok;
-//		std::cout << "looking at child with hash : " << env->GetStateHash(neighbors[x]) << "and f-cost"<<childFCost<<std::endl;
+	//	std::cout << "looking at child with hash : " << env->GetStateHash(neighbors[x]) << "and g-cost"<<childGCost<<std::endl;
+	//	std::cout<<" h cost is : "<<h->HCost(neighbors[x], goal)<<std::endl;
 	//	sd.f_above = std::min(sd.f_above, childFCost); //this is not used in bgs
 		
 		switch (neighborLoc[x])
@@ -748,6 +749,7 @@ bool ImprovedBGS<state, action>::StepIterationUsingF()
 					{
 						auto &i = q_f.Lookup(neighborID[x]);
 						i.h = bestH-edgeCosts[x];
+					//	std::cout<<" new h cost is : "<<i.h<<std::endl;
 					}
 				}
 				if(fless(childGCost,q_f.Lookup(neighborID[x]).g)){
@@ -770,7 +772,9 @@ bool ImprovedBGS<state, action>::StepIterationUsingF()
 						auto &i = q_f.Lookup(neighborID[x]);
 						i.h = std::max(i.h, bestH-edgeCosts[x]);
 						q_f.KeyChanged(neighborID[x]);
+					//	std::cout<<" new h cost is : "<<i.h<<std::endl;
 					}
+
 				}
 				break;
 			case kNotFound:
@@ -781,6 +785,8 @@ bool ImprovedBGS<state, action>::StepIterationUsingF()
 							  childGCost,
 							  std::max(h->HCost(neighbors[x], goal), q_f.Lookup(nodeid).h-edgeCosts[x]),
 							  nodeid);
+				//	std::cout<<"h current is " << h->HCost(neighbors[x], goal) << " and h other is " <<  q_f.Lookup(nodeid).h-edgeCosts[x] << std::endl;
+				//	std::cout<<" new h cost is : "<<std::max(h->HCost(neighbors[x], goal), q_f.Lookup(nodeid).h-edgeCosts[x])<<std::endl;
 				}
 				else{
 					q_f.AddOpenNode(neighbors[x],
@@ -788,6 +794,7 @@ bool ImprovedBGS<state, action>::StepIterationUsingF()
 							  childGCost,
 							  h->HCost(neighbors[x], goal),
 							  nodeid);
+				//	std::cout<<" new h cost is : "<<h->HCost(neighbors[x], goal)<<std::endl;
 				}
 				
 			}
@@ -818,7 +825,7 @@ bool ImprovedBGS<state, action>::StepIterationUsingG()
 		std::reverse(solutionPath.begin(), solutionPath.end());
 		solutionCost = q_g.Lookup(nodeid).g;
 		data.solutionInterval.lowerBound = solutionCost;
-		printf("the solution cost is %1.5f has value is %lld\n",solutionCost, env->GetStateHash(q_g.Lookup(nodeid).data));
+		//printf("the solution cost is %1.5f has value is %lld\n",solutionCost, env->GetStateHash(q_g.Lookup(nodeid).data));
 		return false;
 	}
 	//std::cout << "Expanding: " << q_g.Lookup(nodeid).data << " with hash: " << env->GetStateHash(q_g.Lookup(nodeid).data) << "with f-value " << q_g.Lookup(nodeid).g + h->HCost(q_g.Lookup(nodeid).data, goal)<<std::endl;
@@ -900,8 +907,8 @@ bool ImprovedBGS<state, action>::DoSingleSearchStep(std::vector<state> &thePath)
 //	printf("%lld--",data.nodeLB);
 //	b = sqrt(b); //2
 //	b = cbrt(b); //3
-	b = 0; //4
-//	b = 10000; //5not found lis
+//	b = 0; //4
+	b = 10000; //5not found lis
 	cnt+=1;
 	if(!MainIterationComplete()){
 		if (flesseq(solutionCost, data.solutionInterval.lowerBound))
@@ -912,7 +919,7 @@ bool ImprovedBGS<state, action>::DoSingleSearchStep(std::vector<state> &thePath)
 				}
 		if(!MODE){
 			if(data.nodesReexpanded <= b && data.nodesExpanded <= c1*data.nodeLB){
-				printf("case 1");
+				//printf("case 1");
 				int temp1 = nodesExpanded;
 				int temp2 = nodesReexpanded;
 				if(!IterationCompleteF()){
@@ -930,7 +937,7 @@ bool ImprovedBGS<state, action>::DoSingleSearchStep(std::vector<state> &thePath)
 				}
 			else if(data.nodesReexpanded <= b && data.nodesExpanded > c1*data.nodeLB){
 				if(!case2){
-					printf("case 2 ");
+					//printf("case 2 ");
 				    FindtheCurrentBoundF();
 					case2 = 1;
 					return false;
